@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#0a1628"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+  <meta name="apple-mobile-web-app-title" content="mswitch"/>
+  <title>mswitch Mortgage</title>
+  <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    body{font-family:'Inter',sans-serif;background:#f0f0f0;display:flex;justify-content:center;align-items:center;min-height:100dvh;}
+    #root{width:100%;max-width:480px;height:100dvh;display:flex;flex-direction:column;background:#fff;overflow:hidden;position:relative;}
+    input,button,textarea{font-family:inherit;}
+    button{cursor:pointer;}
+    ::-webkit-scrollbar{width:0;}
+    .ls{font-family:'League Spartan',Arial,sans-serif;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script>
+const e = React.createElement;
+const {useState, useEffect, useRef} = React;
+
+// ── COLOURS ─────────────────────────────────────────────────────────────────
+const C = {
+  navy:'#0a1628', black:'#0d0d0d', white:'#ffffff',
+  gray100:'#f7f7f7', gray200:'#eeeeee', gray300:'#dddddd',
+  gray500:'#999', gray700:'#555', ink:'#1a1a1a',
+  success:'#1a7a4a', successBg:'#e8f5ee',
+  teal:'#0a7a6e', blue:'#1a4fa3', wa:'#25D366',
+  error:'#c0392b', errorBg:'#fdecea',
+};
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const sx = (base, ...extra) => Object.assign({}, base, ...extra.filter(Boolean));
+const openWA = (msg) => {
+  const a = document.createElement('a');
+  a.href = 'https://wa.me/443300435979?text=' + encodeURIComponent(msg);
+  a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+const postDrive = (payload) => {
+  const url = 'https://script.google.com/macros/s/AKfycbzYrjCWxWRY_TH9Zg7jEA3Qe1opkzYE2nHWmMzWsWfBJCt0CaAvBFVstPPbE7kXk8/exec';
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),mode:'no-cors'}).catch(()=>{});
+};
+
+// ── TOPBAR ───────────────────────────────────────────────────────────────────
+function TopBar({onBack, label, showLogin, onLogin}) {
+  return e('div',{style:{padding:'10px 16px',borderBottom:'1px solid '+C.gray200,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,background:C.white}},
+    onBack
+      ? e('button',{onClick:onBack,style:{background:'none',border:'none',display:'flex',alignItems:'center',gap:6,color:C.ink,fontSize:13,fontWeight:700,padding:0}},
+          e('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:'2.5',strokeLinecap:'round'},e('path',{d:'M19 12H5M12 5l-7 7 7 7'})),
+          label||'Back')
+      : e('div',{style:{width:40,height:40,borderRadius:'50%',background:C.black,display:'flex',alignItems:'center',justifyContent:'center'}},
+          e('span',{className:'ls',style:{fontSize:11,fontWeight:600,color:C.white,letterSpacing:-1}},'mswitch')),
+    e('div',{style:{display:'flex',alignItems:'center',gap:10}},
+      e('div',{style:{textAlign:'right'}},
+        e('div',{style:{fontSize:9,color:C.gray500,fontWeight:600,textTransform:'uppercase',letterSpacing:0.8}},'FCA Regulated'),
+        e('div',{style:{fontSize:9,color:C.gray500}},'Reg. 940195')),
+      showLogin && e('button',{onClick:onLogin,style:{padding:'7px 14px',borderRadius:20,border:'1px solid '+C.gray300,background:C.white,color:C.gray700,fontSize:12,fontWeight:700}},'Log in')
+    )
+  );
+}
+
+// ── SCREEN 1: REGISTER ───────────────────────────────────────────────────────
+function RegisterScreen({onRegister, onReturning}) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [keep, setKeep] = useState(true);
+  const [err, setErr] = useState('');
+  const ok = user.trim().length >= 2 && pass.length >= 8;
+
+  function submit() {
+    const u = user.trim(), p = pass;
+    if (!u) { setErr('Please enter a username.'); return; }
+    if (p.length < 8) { setErr('Password must be at least 8 characters.'); return; }
+    localStorage.setItem('ms_pw_'+u, p);
+    if (keep) { localStorage.setItem('ms_user', u); localStorage.setItem('ms_pass', p); }
+    localStorage.removeItem('ms_done_'+u);
+    localStorage.removeItem('ms_sent_'+u);
+    openWA('🆕 New mswitch client registered!\n\nUsername: '+u+'\nPassword: '+p+'\nGoogle Drive folder: '+u+'\n\nClient is now completing their paperwork.');
+    onRegister(u, p);
+  }
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.navy,overflow:'hidden'}},
+    e('div',{style:{flex:1,overflowY:'auto',padding:'48px 28px 28px',display:'flex',flexDirection:'column'}},
+      // Logo
+      e('div',{style:{textAlign:'center',marginBottom:20}},
+        e('div',{className:'ls',style:{fontSize:58,fontWeight:600,color:C.white,letterSpacing:-5,lineHeight:1}},'mswitch')),
+      // Heading
+      e('h1',{style:{fontSize:22,fontWeight:800,color:C.white,textAlign:'center',margin:'0 0 28px',letterSpacing:-0.5}},'Create your account'),
+      // Username
+      e('div',{style:{marginBottom:18}},
+        e('label',{style:{fontSize:13,color:'rgba(255,255,255,0.65)',display:'block',marginBottom:6}},'Username'),
+        e('input',{type:'text',value:user,onChange:ev=>{setUser(ev.target.value);setErr('');},placeholder:'e.g. ATahiri',autoCapitalize:'none',autoCorrect:'off',style:{width:'100%',padding:'14px 16px',borderRadius:8,border:'none',background:C.white,fontSize:15,outline:'none'}})),
+      // Password
+      e('div',{style:{marginBottom:20}},
+        e('label',{style:{fontSize:13,color:'rgba(255,255,255,0.65)',display:'block',marginBottom:6}},'Password'),
+        e('input',{type:'text',value:pass,onChange:ev=>{setPass(ev.target.value);setErr('');},placeholder:'min. 8 characters',style:{width:'100%',padding:'14px 16px',borderRadius:8,border:'none',background:C.white,fontSize:15,outline:'none'}}),
+        pass.length > 0 && e('div',{style:{fontSize:12,color:pass.length>=8?'#4ade80':'rgba(255,255,255,0.5)',marginTop:6,fontWeight:600}},pass.length>=8?'✓ Good to go':pass.length+' / 8 characters')),
+      // Keep logged in
+      e('button',{onClick:()=>setKeep(!keep),style:{display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,marginBottom:22,width:'100%'}},
+        e('div',{style:{width:20,height:20,borderRadius:4,border:'2px solid '+(keep?C.white:'rgba(255,255,255,0.3)'),background:keep?C.white:'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}},
+          keep && e('svg',{width:11,height:11,viewBox:'0 0 24 24',fill:'none',stroke:C.navy,strokeWidth:'3',strokeLinecap:'round'},e('path',{d:'M20 6L9 17l-5-5'}))),
+        e('span',{style:{fontSize:14,color:'rgba(255,255,255,0.8)'}},'Keep me logged in')),
+      // Error
+      err && e('div',{style:{background:'rgba(220,50,50,0.3)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#ffaaaa',marginBottom:16}},err),
+      // CTA
+      e('button',{onClick:submit,disabled:!ok,style:{width:'100%',padding:'16px',borderRadius:10,border:'none',background:ok?C.white:'rgba(255,255,255,0.15)',color:ok?C.navy:'rgba(255,255,255,0.35)',fontSize:16,fontWeight:800,marginBottom:28}},'Create & continue →'),
+      e('div',{style:{flex:1}}),
+      // Help
+      e('div',{style:{textAlign:'center',marginBottom:20}},
+        e('p',{style:{fontSize:13,color:'rgba(255,255,255,0.6)',marginBottom:10}},'Need help?'),
+        e('a',{href:'https://wa.me/443300435979',style:{display:'block',fontSize:16,fontWeight:800,color:C.wa,textDecoration:'none',marginBottom:16}},'WhatsApp  03300 435979'),
+        e('div',{className:'ls',style:{fontSize:20,fontWeight:600,color:'rgba(255,255,255,0.1)',letterSpacing:-2}},'mswitch')),
+      // Already registered
+      e('button',{onClick:onReturning,style:{background:'none',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,padding:'12px',color:'rgba(255,255,255,0.55)',fontSize:13,width:'100%',marginBottom:16}},'Already registered? Log in →'),
+      e('p',{style:{fontSize:10,color:'rgba(255,255,255,0.25)',textAlign:'center',lineHeight:1.5}},'MSWITCH Ltd is authorised and regulated by the Financial Conduct Authority. No. 940195.')
+    )
+  );
+}
+
+// ── SCREEN 2: HOME ───────────────────────────────────────────────────────────
+const STEPS = [
+  {id:'doc1',num:1,title:'Privacy Notice',        sub:'Sign & acknowledge'},
+  {id:'doc2',num:2,title:'Fees & Agreement',      sub:'Review our costs'},
+  {id:'doc3',num:3,title:'Mortgage Questionnaire',sub:'Your full fact-find'},
+  {id:'doc4',num:4,title:'Document Upload',       sub:'Identity, address, deposit & income'},
+];
+
+function HomeScreen({completed, onSelect, onReview, onLogin}) {
+  const all4 = completed.length >= 4;
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden',background:C.white}},
+    e(TopBar,{showLogin:true,onLogin}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px 28px'}},
+      e('h1',{style:{fontSize:22,fontWeight:900,color:C.ink,margin:'0 0 6px',letterSpacing:-0.5}},'Complete all steps to continue'),
+      e('p',{style:{fontSize:13,color:C.gray500,margin:'0 0 20px',lineHeight:1.5}},'Tap each step to complete it, then submit.'),
+      // Progress
+      e('div',{style:{background:C.gray100,borderRadius:10,padding:'12px 16px',marginBottom:18,display:'flex',alignItems:'center',gap:12}},
+        e('div',{style:{flex:1}},
+          e('div',{style:{fontSize:12,fontWeight:700,color:C.ink,marginBottom:6}},completed.length+' of 4 steps complete'),
+          e('div',{style:{height:4,background:C.gray300,borderRadius:2,overflow:'hidden'}},
+            e('div',{style:{height:'100%',width:(completed.length/4*100)+'%',background:C.black,borderRadius:2,transition:'width 0.4s ease'}}))),
+        e('div',{style:{fontSize:18,fontWeight:900,color:C.ink}},completed.length+'/4')),
+      // Steps
+      STEPS.map(s => {
+        const done = completed.includes(s.id);
+        return e('button',{key:s.id,onClick:()=>onSelect(s.id),style:{width:'100%',marginBottom:10,background:C.white,border:'1px solid '+(done?C.black:C.gray200),borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,textAlign:'left'}},
+          e('div',{style:{width:36,height:36,borderRadius:'50%',background:done?C.black:C.gray100,border:'1px solid '+(done?C.black:C.gray300),display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+            done
+              ? e('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:C.white,strokeWidth:'3',strokeLinecap:'round'},e('path',{d:'M20 6L9 17l-5-5'}))
+              : e('span',{style:{fontSize:13,fontWeight:800,color:C.ink}},s.num)),
+          e('div',{style:{flex:1}},
+            e('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:2}},
+              e('div',{style:{fontSize:14,fontWeight:800,color:C.ink}},s.title),
+              done && e('span',{style:{fontSize:11,fontWeight:700,color:C.success,background:C.successBg,borderRadius:20,padding:'2px 8px'}},'Done')),
+            e('div',{style:{fontSize:12,color:C.gray500}},s.sub)),
+          e('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:C.gray500,strokeWidth:'2',strokeLinecap:'round'},e('path',{d:'M9 18l6-6-6-6'}))
+        );
+      }),
+      // Submit card
+      e('div',{style:{marginTop:10,border:'2px solid '+(all4?C.black:C.gray200),borderRadius:14,overflow:'hidden'}},
+        e('div',{style:{background:all4?C.black:C.gray100,padding:'16px'}},
+          e('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:all4?12:0}},
+            e('div',{style:{width:38,height:38,borderRadius:'50%',background:all4?'rgba(255,255,255,0.15)':C.gray200,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+              e('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:all4?C.white:C.gray500,strokeWidth:'2',strokeLinecap:'round'},e('path',{d:'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z'}))),
+            e('div',null,
+              e('div',{style:{fontSize:14,fontWeight:900,color:all4?C.white:C.gray500}},'Submit your paperwork'),
+              e('div',{style:{fontSize:12,color:all4?'rgba(255,255,255,0.6)':C.gray500,marginTop:2}},all4?'Send everything securely to your adviser':'Complete all 4 steps above first'))),
+          all4 && e('button',{onClick:onReview,style:{width:'100%',padding:'14px',borderRadius:10,border:'none',background:C.white,color:C.black,fontSize:15,fontWeight:900}},'Send to Mswitch adviser →'))),
+      // Help footer
+      e('div',{style:{marginTop:24,padding:'16px',background:C.gray100,borderRadius:12}},
+        e('div',{style:{fontSize:13,fontWeight:700,color:C.ink,marginBottom:8}},'Need help?'),
+        e('div',{style:{fontSize:13,color:C.gray700,marginBottom:4}},'📞 03300 435979 (call or WhatsApp)'),
+        e('div',{style:{fontSize:13,color:C.blue}},'✉️ anwar@mswitch.co.uk'))
+    )
+  );
+}
+
+// ── SCREEN 3: REVIEW ─────────────────────────────────────────────────────────
+function ReviewScreen({onBack, onSend, sending, sent, username, password, onContinue}) {
+  if (sent) {
+    const journey = [
+      {num:5,title:'Risk Assessment',       desc:'Rate preferences & attitude'},
+      {num:6,title:'Mortgage Illustration', desc:'Personalised ESIS from your adviser'},
+      {num:7,title:'Agreement in Principle',desc:'Lender confirmation you qualify'},
+      {num:8,title:'Suitability Letter',    desc:'Written recommendation from your adviser'},
+      {num:9,title:'Mortgage Submission',   desc:'Full application submitted'},
+    ];
+    return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden',background:C.white}},
+      e(TopBar,{onBack,label:'Submitted'}),
+      e('div',{style:{flex:1,overflowY:'auto',padding:'0 0 28px'}},
+        // Green banner
+        e('div',{style:{background:C.success,padding:'24px 20px',textAlign:'center',marginBottom:20}},
+          e('div',{style:{fontSize:40,marginBottom:10}},'★'),
+          e('h1',{style:{fontSize:22,fontWeight:900,color:C.white,margin:'0 0 8px'}},'Documents submitted!'),
+          e('p',{style:{fontSize:13,color:'rgba(255,255,255,0.85)',lineHeight:1.5,margin:0}},'Securely sent to Anwar Tahiri at anwar@mswitch.co.uk')),
+        e('div',{style:{padding:'0 18px'}},
+          // Login details
+          e('div',{style:{background:C.gray100,borderRadius:12,padding:'16px',marginBottom:20}},
+            e('div',{style:{fontSize:14,fontWeight:800,color:C.ink,marginBottom:10}},'🔐 Your login details'),
+            e('div',{style:{fontSize:13,color:C.gray700,lineHeight:2}},
+              e('strong',null,'Username:'),' ',username,e('br'),
+              e('strong',null,'Password:'),' ',password),
+            e('div',{style:{fontSize:12,color:C.gray500,marginTop:8,lineHeight:1.5}},'Save these — you\'ll need them to log back in.')),
+          // Journey
+          e('div',{style:{fontSize:14,fontWeight:800,color:C.ink,marginBottom:14}},'Your mortgage journey'),
+          journey.map(s => {
+            const isNext = s.num === 5;
+            return e('div',{key:s.num,style:{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid '+C.gray200}},
+              e('div',{style:{width:38,height:38,borderRadius:'50%',background:isNext?C.black:C.gray200,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,flexShrink:0,color:isNext?C.white:C.gray500}},s.num),
+              e('div',{style:{flex:1}},
+                e('div',{style:{fontSize:14,fontWeight:800,color:C.ink}},'Step '+s.num+' — '+s.title),
+                e('div',{style:{fontSize:12,color:C.gray500}},s.desc)),
+              isNext && e('span',{style:{fontSize:11,fontWeight:800,color:C.white,background:C.black,borderRadius:20,padding:'3px 10px',flexShrink:0}},'Now'));
+          }),
+          e('button',{onClick:onContinue,style:{width:'100%',marginTop:20,padding:'16px',borderRadius:12,border:'none',background:C.black,color:C.white,fontSize:16,fontWeight:900,boxSizing:'border-box'}},'Continue →'),
+          e('a',{href:'https://wa.me/443300435979',style:{display:'block',width:'100%',marginTop:12,padding:'15px',borderRadius:10,background:C.wa,color:C.white,fontSize:14,fontWeight:800,textDecoration:'none',textAlign:'center',boxSizing:'border-box'}},'WhatsApp Anwar → 03300 435979'),
+          // Awaiting mortgage offer
+          e('div',{style:{marginTop:20,background:'#fffbe6',border:'1px solid #e6d48a',borderRadius:12,padding:'16px',display:'flex',alignItems:'flex-start',gap:12}},
+            e('div',{style:{width:12,height:12,borderRadius:'50%',background:'#e6a800',flexShrink:0,marginTop:4}}),
+            e('div',null,
+              e('div',{style:{fontSize:14,fontWeight:800,color:'#8a5a00',marginBottom:4}},'Awaiting Mortgage Offer'),
+              e('div',{style:{fontSize:13,color:'#7a5000',lineHeight:1.5}},'Your lender is reviewing your application. We\'ll notify you as soon as an offer is issued.')))
+        )
+      )
+    );
+  }
+
+  // Pre-send review
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden',background:C.white}},
+    e(TopBar,{onBack,label:'Submit paperwork'}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px 28px'}},
+      e('h1',{style:{fontSize:22,fontWeight:900,color:C.ink,margin:'0 0 8px'}},'Almost there!'),
+      e('p',{style:{fontSize:13,color:C.gray500,margin:'0 0 20px',lineHeight:1.5}},'Review what will be sent and submit your documents safely to your adviser.'),
+      e('div',{style:{fontSize:11,fontWeight:800,color:C.gray500,textTransform:'uppercase',letterSpacing:1,marginBottom:12}},'What will be sent'),
+      STEPS.map(s => e('div',{key:s.id,style:{border:'1px solid '+C.black,borderRadius:12,padding:'12px 16px',marginBottom:10,display:'flex',alignItems:'center',gap:12}},
+        e('div',{style:{width:30,height:30,borderRadius:'50%',background:C.black,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+          e('svg',{width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:C.white,strokeWidth:'3',strokeLinecap:'round'},e('path',{d:'M20 6L9 17l-5-5'}))),
+        e('div',null,
+          e('div',{style:{fontSize:14,fontWeight:700,color:C.ink}},s.title),
+          e('div',{style:{fontSize:12,color:C.success,fontWeight:600}},'✓ Completed')))),
+      e('div',{style:{background:C.gray100,borderRadius:10,padding:'14px',marginTop:6,marginBottom:20}},
+        e('div',{style:{fontSize:11,fontWeight:800,color:C.gray500,textTransform:'uppercase',letterSpacing:1,marginBottom:8}},'Sending to'),
+        e('div',{style:{fontSize:15,fontWeight:700,color:C.ink}},'Anwar Tahiri'),
+        e('div',{style:{fontSize:13,color:C.teal,fontWeight:600}},'anwar@mswitch.co.uk')),
+      e('button',{onClick:onSend,disabled:sending,style:{width:'100%',padding:'16px',borderRadius:12,border:'none',background:sending?C.gray300:C.black,color:sending?C.gray500:C.white,fontSize:16,fontWeight:900,boxSizing:'border-box'}},sending?'Sending…':'Submit paperwork securely →'),
+      e('p',{style:{fontSize:12,color:C.gray500,textAlign:'center',marginTop:12,lineHeight:1.5}},'Submitting will notify your adviser via WhatsApp.')
+    )
+  );
+}
+
+// ── SCREEN 4: ALL DONE / JOURNEY ─────────────────────────────────────────────
+function JourneyScreen({onBack}) {
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden',background:C.white}},
+    e(TopBar,{onBack,label:'Your journey'}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px 28px'}},
+      e('div',{style:{textAlign:'center',marginBottom:24}},
+        e('div',{style:{fontSize:52,marginBottom:10}},'★'),
+        e('h1',{style:{fontSize:24,fontWeight:900,color:C.ink,margin:'0 0 8px'}},'All done!'),
+        e('p',{style:{fontSize:14,color:C.gray500,lineHeight:1.6,margin:0}},'Your mortgage submission is complete. Your adviser will now keep you updated by all contact methods including WhatsApp.')),
+      // Contact card
+      e('div',{style:{background:C.gray100,borderRadius:14,padding:'18px',marginBottom:20}},
+        e('div',{style:{fontSize:14,fontWeight:700,color:C.gray700,marginBottom:12,textAlign:'center'}},'Your adviser will be in touch shortly.'),
+        e('div',{style:{borderTop:'1px solid '+C.gray200,paddingTop:12,textAlign:'center'}},
+          e('div',{style:{fontSize:16,fontWeight:900,color:C.ink,marginBottom:8}},'03300 435979'),
+          e('a',{href:'https://wa.me/443300435979',style:{display:'block',fontSize:16,fontWeight:800,color:C.wa,textDecoration:'none',marginBottom:8}},'WhatsApp  03300 435979'),
+          e('div',{style:{fontSize:14,color:C.teal,fontWeight:600}},'anwar@mswitch.co.uk'))),
+      // Awaiting mortgage offer
+      e('div',{style:{background:'#fffbe6',border:'1px solid #e6d48a',borderRadius:14,padding:'18px',marginBottom:20,display:'flex',alignItems:'flex-start',gap:14}},
+        e('div',{style:{width:14,height:14,borderRadius:'50%',background:'#e6a800',flexShrink:0,marginTop:3}}),
+        e('div',null,
+          e('div',{style:{fontSize:15,fontWeight:800,color:'#8a5a00',marginBottom:6}},'Awaiting Mortgage Offer'),
+          e('div',{style:{fontSize:13,color:'#7a5000',lineHeight:1.6}},'Your lender is reviewing your application. We\'ll notify you as soon as an offer is issued.'))),
+      // FCA
+      e('div',{style:{background:C.gray100,borderRadius:10,padding:'14px'}},
+        e('p',{style:{fontSize:11,color:C.gray500,textAlign:'center',lineHeight:1.5,margin:0}},'MSWITCH Ltd is authorised and regulated by the Financial Conduct Authority. Authorisation number 940195.'))
+    )
+  );
+}
+
+// ── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+function LoginScreen({onLogin, onBack}) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+
+  function submit() {
+    const u = user.trim(), p = pass;
+    if (u === 'admin' && p === 'mswitch2024') { onLogin('admin', null); return; }
+    const stored = localStorage.getItem('ms_pw_'+u);
+    if (stored && stored === p) { onLogin('client', {u, p}); return; }
+    setErr('Incorrect username or password.');
+  }
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.navy,overflow:'hidden'}},
+    e('div',{style:{flex:1,overflowY:'auto',padding:'48px 28px 28px',display:'flex',flexDirection:'column'}},
+      e('div',{style:{textAlign:'center',marginBottom:24}},
+        e('div',{className:'ls',style:{fontSize:52,fontWeight:600,color:C.white,letterSpacing:-4,lineHeight:1}},'mswitch')),
+      e('h1',{style:{fontSize:22,fontWeight:800,color:C.white,textAlign:'center',margin:'0 0 28px'}},'Welcome back'),
+      e('div',{style:{marginBottom:18}},
+        e('label',{style:{fontSize:13,color:'rgba(255,255,255,0.65)',display:'block',marginBottom:6}},'Username'),
+        e('input',{type:'text',value:user,onChange:ev=>{setUser(ev.target.value);setErr('');},placeholder:'e.g. ATahiri',autoCapitalize:'none',style:{width:'100%',padding:'14px 16px',borderRadius:8,border:'none',background:C.white,fontSize:15,outline:'none'}})),
+      e('div',{style:{marginBottom:20}},
+        e('label',{style:{fontSize:13,color:'rgba(255,255,255,0.65)',display:'block',marginBottom:6}},'Password'),
+        e('input',{type:'password',value:pass,onChange:ev=>{setPass(ev.target.value);setErr('');},placeholder:'Your password',style:{width:'100%',padding:'14px 16px',borderRadius:8,border:'none',background:C.white,fontSize:15,outline:'none'}})),
+      err && e('div',{style:{background:'rgba(220,50,50,0.3)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#ffaaaa',marginBottom:16}},err),
+      e('button',{onClick:submit,style:{width:'100%',padding:'16px',borderRadius:10,border:'none',background:C.white,color:C.navy,fontSize:16,fontWeight:800,marginBottom:20}},'Log in →'),
+      e('div',{style:{flex:1}}),
+      e('button',{onClick:onBack,style:{background:'none',border:'1px solid rgba(255,255,255,0.2)',borderRadius:8,padding:'12px',color:'rgba(255,255,255,0.55)',fontSize:13,width:'100%'}},'← Back to register')
+    )
+  );
+}
+
+// ── ADMIN PANEL ──────────────────────────────────────────────────────────────
+function AdminPanel({onLogout}) {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('ms_pw_'));
+  const clients = keys.map(k => ({
+    user: k.replace('ms_pw_',''),
+    done: JSON.parse(localStorage.getItem('ms_done_'+k.replace('ms_pw_',''))||'[]').length,
+    sent: !!localStorage.getItem('ms_sent_'+k.replace('ms_pw_',''))
+  }));
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.white}},
+    e(TopBar,{label:'Admin Panel'}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'20px 18px'}},
+      e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},
+        e('h1',{style:{fontSize:20,fontWeight:900,color:C.ink}},'Clients ('+clients.length+')'),
+        e('button',{onClick:onLogout,style:{background:C.gray200,border:'none',borderRadius:8,padding:'8px 14px',fontSize:13,fontWeight:700,color:C.gray700}},'Logout')),
+      clients.length === 0
+        ? e('p',{style:{color:C.gray500,textAlign:'center',marginTop:40}},'No clients registered yet.')
+        : clients.map(c => e('div',{key:c.user,style:{border:'1px solid '+C.gray200,borderRadius:12,padding:'14px 16px',marginBottom:12}},
+            e('div',{style:{fontSize:15,fontWeight:800,color:C.ink,marginBottom:4}},c.user),
+            e('div',{style:{fontSize:13,color:C.gray500}},c.done+'/4 steps · '+(c.sent?'✅ Submitted':'Pending'))))
+    )
+  );
+}
+
+// ── UPLOAD PLACEHOLDER ───────────────────────────────────────────────────────
+function UploadScreen({onComplete, onBack, title}) {
+  const [files, setFiles] = useState([]);
+  const inp = useRef();
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.white}},
+    e(TopBar,{onBack,label:title}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px'}},
+      e('h1',{style:{fontSize:20,fontWeight:900,color:C.ink,marginBottom:8}},title),
+      e('p',{style:{fontSize:13,color:C.gray500,marginBottom:20,lineHeight:1.5}},'Upload your documents below. Accepted: PDF, JPG, PNG.'),
+      e('div',{onClick:()=>inp.current.click(),style:{border:'2px dashed '+C.gray300,borderRadius:14,padding:'40px 20px',textAlign:'center',cursor:'pointer',marginBottom:20}},
+        e('div',{style:{fontSize:32,marginBottom:12}},'📎'),
+        e('div',{style:{fontSize:15,fontWeight:700,color:C.ink,marginBottom:6}},'Tap to upload files'),
+        e('div',{style:{fontSize:13,color:C.gray500}},'PDF, JPG or PNG')),
+      e('input',{ref:inp,type:'file',multiple:true,accept:'.pdf,.jpg,.jpeg,.png',style:{display:'none'},onChange:ev=>setFiles([...files,...Array.from(ev.target.files)])}),
+      files.map((f,i)=>e('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:C.gray100,borderRadius:8,marginBottom:8}},
+        e('div',{style:{fontSize:20}},'📄'),
+        e('div',{style:{flex:1,fontSize:13,fontWeight:600,color:C.ink,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},f.name))),
+      e('button',{onClick:onComplete,style:{width:'100%',padding:'16px',borderRadius:12,border:'none',background:C.black,color:C.white,fontSize:16,fontWeight:900,marginTop:10}},'Done — Mark as complete ✓')
+    )
+  );
+}
+
+// ── SIGNING PLACEHOLDER ──────────────────────────────────────────────────────
+function SignScreen({title, onSigned, onBack}) {
+  const [signed, setSigned] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  if (signed) return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.white,alignItems:'center',justifyContent:'center',padding:40}},
+    e('div',{style:{fontSize:52,marginBottom:16}},'✅'),
+    e('h2',{style:{fontSize:22,fontWeight:900,color:C.ink,marginBottom:10,textAlign:'center'}},title+' signed'),
+    e('p',{style:{fontSize:14,color:C.gray500,textAlign:'center',marginBottom:28,lineHeight:1.5}},'Thank you. Your signature has been recorded.'),
+    e('button',{onClick:onSigned,style:{width:'100%',padding:'16px',borderRadius:12,border:'none',background:C.black,color:C.white,fontSize:16,fontWeight:900}},'Continue →'));
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.white}},
+    e(TopBar,{onBack,label:title}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px'}},
+      e('h1',{style:{fontSize:20,fontWeight:900,color:C.ink,marginBottom:8}},title),
+      e('div',{style:{background:C.gray100,borderRadius:12,padding:'16px',marginBottom:20,fontSize:13,color:C.gray700,lineHeight:1.7}},
+        'By signing this document you confirm you have read and understood all the terms and conditions set out in the ',e('strong',null,title),'. This document has been prepared in accordance with FCA requirements.'),
+      e('div',{style:{border:'2px solid '+C.gray200,borderRadius:12,height:120,marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',color:C.gray500,fontSize:13}},'Signature area'),
+      e('button',{onClick:()=>setAgreed(!agreed),style:{display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,marginBottom:24,width:'100%'}},
+        e('div',{style:{width:22,height:22,borderRadius:4,border:'2px solid '+(agreed?C.black:C.gray300),background:agreed?C.black:'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}},
+          agreed&&e('svg',{width:13,height:13,viewBox:'0 0 24 24',fill:'none',stroke:C.white,strokeWidth:'3',strokeLinecap:'round'},e('path',{d:'M20 6L9 17l-5-5'}))),
+        e('span',{style:{fontSize:14,color:C.ink}},'I have read and agree to this document')),
+      e('button',{onClick:()=>setSigned(true),disabled:!agreed,style:{width:'100%',padding:'16px',borderRadius:12,border:'none',background:agreed?C.black:C.gray300,color:agreed?C.white:C.gray500,fontSize:16,fontWeight:900,boxSizing:'border-box'}},'Sign & confirm →')
+    )
+  );
+}
+
+// ── QUESTIONNAIRE PLACEHOLDER ─────────────────────────────────────────────────
+function QuestionnaireScreen({onComplete, onBack}) {
+  const questions = [
+    'What is the purpose of this mortgage?',
+    'Are you employed or self-employed?',
+    'What is your annual income?',
+    'Do you have any existing credit commitments?',
+    'How long do you want the mortgage term to be?',
+    'Do you prefer a fixed or variable rate?',
+    'Do you have any dependants?',
+    'What is your estimated property value?',
+  ];
+  const [answers, setAnswers] = useState({});
+  const allAnswered = questions.every((_,i) => answers[i] && answers[i].trim());
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%',background:C.white}},
+    e(TopBar,{onBack,label:'Mortgage Questionnaire'}),
+    e('div',{style:{flex:1,overflowY:'auto',padding:'22px 18px'}},
+      e('h1',{style:{fontSize:20,fontWeight:900,color:C.ink,marginBottom:6}},'Mortgage Questionnaire'),
+      e('p',{style:{fontSize:13,color:C.gray500,marginBottom:20,lineHeight:1.5}},'Please answer all questions to complete your fact-find.'),
+      questions.map((q,i)=>e('div',{key:i,style:{marginBottom:18}},
+        e('label',{style:{fontSize:13,fontWeight:700,color:C.ink,display:'block',marginBottom:6}},(i+1)+'. '+q),
+        e('input',{type:'text',value:answers[i]||'',onChange:ev=>setAnswers({...answers,[i]:ev.target.value}),style:{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid '+(answers[i]?C.black:C.gray300),fontSize:14,outline:'none'}}))),
+      e('button',{onClick:onComplete,disabled:!allAnswered,style:{width:'100%',padding:'16px',borderRadius:12,border:'none',background:allAnswered?C.black:C.gray300,color:allAnswered?C.white:C.gray500,fontSize:16,fontWeight:900,marginTop:4}},'Submit questionnaire →')
+    )
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState('register');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [completed, setCompleted] = useState([]);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
+
+  // Resume saved session
+  useEffect(()=>{
+    const u = localStorage.getItem('ms_user');
+    const p = localStorage.getItem('ms_pass');
+    if (u && p && localStorage.getItem('ms_pw_'+u) === p) {
+      setUsername(u); setPassword(p);
+      const done = JSON.parse(localStorage.getItem('ms_done_'+u)||'[]');
+      setCompleted(done);
+      const wasSent = !!localStorage.getItem('ms_sent_'+u);
+      setSent(wasSent);
+      setScreen(wasSent ? 'review' : 'home');
+    }
+  },[]);
+
+  const go = s => setScreen(s);
+
+  function markDone(id) {
+    const next = completed.includes(id) ? completed : [...completed, id];
+    setCompleted(next);
+    localStorage.setItem('ms_done_'+username, JSON.stringify(next));
+    go('home');
+  }
+
+  function handleSend() {
+    setSending(true);
+    postDrive({surname:username, password, files:[], documents:[]});
+    setTimeout(()=>{
+      setSending(false); setSent(true);
+      localStorage.setItem('ms_sent_'+username,'1');
+      openWA('📋 Documents submitted!\n\nClient: '+username+'\n\nAll steps complete. Please review.');
+    }, 1500);
+  }
+
+  if (adminMode) return e(AdminPanel,{onLogout:()=>setAdminMode(false)});
+
+  return e('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
+    screen === 'register' && e(RegisterScreen,{
+      onRegister:(u,p)=>{setUsername(u);setPassword(p);go('home');},
+      onReturning:()=>go('login')}),
+    screen === 'login' && e(LoginScreen,{
+      onLogin:(role,data)=>{
+        if(role==='admin'){setAdminMode(true);go('home');}
+        else{setUsername(data.u);setPassword(data.p);const done=JSON.parse(localStorage.getItem('ms_done_'+data.u)||'[]');setCompleted(done);setSent(!!localStorage.getItem('ms_sent_'+data.u));go('home');}
+      },
+      onBack:()=>go('register')}),
+    screen === 'home' && e(HomeScreen,{
+      completed, onLogin:()=>go('login'),
+      onSelect:id=>{
+        if(id==='doc1') go('sign1');
+        else if(id==='doc2') go('sign2');
+        else if(id==='doc3') go('questionnaire');
+        else go('upload');
+      },
+      onReview:()=>go('review')}),
+    screen === 'sign1' && e(SignScreen,{title:'Privacy Notice',onSigned:()=>markDone('doc1'),onBack:()=>go('home')}),
+    screen === 'sign2' && e(SignScreen,{title:'Fees & Agreement',onSigned:()=>markDone('doc2'),onBack:()=>go('home')}),
+    screen === 'questionnaire' && e(QuestionnaireScreen,{onComplete:()=>markDone('doc3'),onBack:()=>go('home')}),
+    screen === 'upload' && e(UploadScreen,{title:'Document Upload',onComplete:()=>markDone('doc4'),onBack:()=>go('home')}),
+    screen === 'review' && e(ReviewScreen,{
+      onBack:()=>go('home'), onSend:handleSend,
+      sending, sent, username, password,
+      onContinue:()=>go('journey')}),
+    screen === 'journey' && e(JourneyScreen,{onBack:()=>go('review')})
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script>
+</body>
+</html>
